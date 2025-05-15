@@ -118,34 +118,66 @@ class BookTrackerApp:
         self.root.minsize(600, 400)
         self.collection = BookCollection()
 
-        # Load the original background image
-        self.bg_image_original = Image.open("9285857.jpg")
-        self.bg_photo = None
-        self.bg_label = tk.Label(self.root)
-        self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
-
-        # Debounce variable for resize event
-        self._resize_after_id = None
-        self.root.bind('<Configure>', self._resize_bg)
+        # Load the original background image with error handling
+        try:
+            self.bg_image_original = Image.open("9285857.jpg")
+            self.bg_photo = None
+            self.bg_label = tk.Label(self.root)
+            self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
+            self._resize_after_id = None
+            self.root.bind('<Configure>', self._resize_bg)
+        except Exception as e:
+            messagebox.showwarning("Background Image Missing", f"Could not load background image: {e}\nThe app will run with a plain background.")
+            self.bg_image_original = None
+            self.bg_photo = None
+            self.bg_label = tk.Label(self.root, bg="#FF5733")
+            self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
+            self._resize_after_id = None
 
         # Main frame on top of background, white background, with padding
         self.main_frame = tk.Frame(self.root, bg="white", highlightthickness=0, bd=0)
         self.main_frame.grid(row=0, column=0, sticky="nsew", padx=40, pady=40)
         self.root.grid_columnconfigure(0, weight=1)
         self.root.grid_rowconfigure(0, weight=1)
-        self.show_home()
+        self.show_login_screen()
 
     def _resize_bg(self, event):
-        # Debounce: only update after resizing has stopped for 100ms
+        if not self.bg_image_original:
+            return
         if hasattr(self, '_resize_after_id') and self._resize_after_id:
             self.root.after_cancel(self._resize_after_id)
         self._resize_after_id = self.root.after(100, lambda: self._do_resize_bg(event))
 
     def _do_resize_bg(self, event):
+        if not self.bg_image_original:
+            return
         if event.width > 1 and event.height > 1:
             resized = self.bg_image_original.resize((event.width, event.height), Image.LANCZOS)
             self.bg_photo = ImageTk.PhotoImage(resized)
             self.bg_label.config(image=self.bg_photo)
+
+    # Show the login screen in the main frame
+    def show_login_screen(self):
+        for widget in self.main_frame.winfo_children():
+            widget.destroy()
+        menu_frame = tk.Frame(self.main_frame, bg="white", padx=40, pady=40)
+        menu_frame.pack(expand=True)
+        username_label = tk.Label(menu_frame, text="STUDENT ID:", bg="white", fg="#FF5733", font=("Helvetica", 12))
+        username_label.pack(pady=(30, 5))
+        username_entry = tk.Entry(menu_frame, font=("Helvetica", 12))
+        username_entry.pack(pady=5)
+        password_label = tk.Label(menu_frame, text="Password:", bg="white", fg="#FF5733", font=("Helvetica", 12))
+        password_label.pack(pady=5)
+        password_entry = tk.Entry(menu_frame, show="*", font=("Helvetica", 12))
+        password_entry.pack(pady=5)
+        def validate_login():
+            # Accept any credentials
+            messagebox.showinfo("Login Successful", "Welcome!")
+            self.show_home()
+        login_button = tk.Button(menu_frame, text="Login", command=validate_login, font=("Helvetica", 12), bg="#FF5733", fg="white", padx=20, pady=10)
+        login_button.pack(pady=(15, 10))
+        exit_button = tk.Button(menu_frame, text="Exit", command=self.root.quit, font=("Helvetica", 12), bg="#f44336", fg="white", padx=20, pady=10)
+        exit_button.pack(pady=(0, 30))
 
     # Show the home screen with navigation buttons.
     # Why: Provides the main navigation for the app, letting users choose what to do next.
@@ -278,15 +310,10 @@ class BookTrackerApp:
     # Log out of the app and return to the login screen.
     # Why: Allows the user to end their session and return to the login screen for security or switching users.
     def logout(self):
-        self.root.destroy()
-        show_login_screen()
+        self.show_login_screen()
 
-# Start the application by showing the login screen.
-# Why: Ensures the user must log in before accessing the main app.
+# Start the application by showing the login screen in the same window
 if __name__ == "__main__":
-    show_login_screen()
-
-
-
-
-
+    root = tk.Tk()
+    app = BookTrackerApp(root)
+    root.mainloop()
